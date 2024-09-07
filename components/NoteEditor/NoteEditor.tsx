@@ -12,7 +12,7 @@ interface NoteEditorProps {
 
 const initialContent1: NoteTextBlock[] = [
   {
-    id: "1",
+    id: "73a69dff-65d1-4d4a-b844-484f698f1e8a",
     type: "text",
     align: "left",
     fontSize: 16,
@@ -100,10 +100,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     if (!blockElement || !blockElement.contains(range.commonAncestorContainer))
       return;
 
-    const startTokenIndex = Number(
+    const firstSelectedTokenIndex = Number(
       range.startContainer.parentElement?.getAttribute("data-token-index") || 0
     );
-    const endTokenIndex = Number(
+    const lastSelectedTokenIndex = Number(
       range.endContainer.parentElement?.getAttribute("data-token-index") || 0
     );
 
@@ -114,6 +114,15 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       const newValue: TextBlockValue[] = [];
       const currentOffset = 0;
 
+      const allSelectedTokens = block.value.slice(
+        firstSelectedTokenIndex,
+        lastSelectedTokenIndex
+      );
+      const invertFormatting =
+        allSelectedTokens.every(([, formats]) =>
+          formats.includes(newFormatting)
+        ) || allSelectedTokens.length === 0;
+
       const applyFormattingToSegment = (
         text: string,
         formats: Array<"b" | "i" | "u" | undefined>,
@@ -123,8 +132,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         if (start > 0) {
           newValue.push([text.slice(0, start), formats]);
         }
+
         const newFormats = formats.includes(newFormatting)
-          ? formats
+          ? invertFormatting
+            ? formats.filter((f) => f !== newFormatting)
+            : formats
           : [...formats, newFormatting];
         newValue.push([text.slice(start, end), newFormats]);
         if (end < text.length) {
@@ -132,24 +144,24 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         }
       };
 
-      if (startTokenIndex === endTokenIndex) {
-        const [text, formats] = block.value[startTokenIndex];
-        if (startTokenIndex > 0) {
-          const tokensBefore = block.value.slice(0, startTokenIndex);
+      if (firstSelectedTokenIndex === lastSelectedTokenIndex) {
+        const [text, formats] = block.value[firstSelectedTokenIndex];
+        if (firstSelectedTokenIndex > 0) {
+          const tokensBefore = block.value.slice(0, firstSelectedTokenIndex);
           newValue.push(...tokensBefore);
         }
         applyFormattingToSegment(text, formats, startOffset, endOffset);
-        if (startTokenIndex < block.value.length - 1) {
-          const tokensAfter = block.value.slice(startTokenIndex + 1);
+        if (firstSelectedTokenIndex < block.value.length - 1) {
+          const tokensAfter = block.value.slice(firstSelectedTokenIndex + 1);
           newValue.push(...tokensAfter);
         }
       } else {
         block.value.forEach(([text, formats], index) => {
           const start = currentOffset;
           const end = start + text.length;
-          if (index === startTokenIndex) {
+          if (index === firstSelectedTokenIndex) {
             applyFormattingToSegment(text, formats, startOffset, end);
-          } else if (index === endTokenIndex) {
+          } else if (index === lastSelectedTokenIndex) {
             applyFormattingToSegment(text, formats, start, endOffset);
           } else {
             newValue.push([text, formats]);
@@ -159,9 +171,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
       return { ...block, value: newValue };
     });
-
-    // Force re-render to update the DOM
-    setBlocks((prevBlocks) => [...prevBlocks]);
   };
 
   const handleBlockChange: React.FormEventHandler<HTMLDivElement> = (e) => {
