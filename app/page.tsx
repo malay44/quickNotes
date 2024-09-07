@@ -10,7 +10,8 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Separator } from "@/components/ui/separator";
-import { NoteList } from "@/components/notesList";
+import { NoteList } from "@/components/NotesList";
+import NoteEditor from "@/components/NoteEditor";
 
 export default function NotesPage() {
   return (
@@ -39,7 +40,9 @@ export default function NotesPage() {
         <NoteList />
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={80} minSize={30}></ResizablePanel>
+      <ResizablePanel defaultSize={80} minSize={30}>
+        <NoteEditor />
+      </ResizablePanel>
     </ResizablePanelGroup>
   );
 }
