@@ -90,7 +90,79 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     });
   };
 
-  const applyFormatting = (formatting?: "b" | "i" | "u") => {};
+  const applyFormatting = (newFormatting: "b" | "i" | "u") => {
+    if (!selectedBlockId) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const blockElement = blockRefs.current[selectedBlockId];
+    if (!blockElement || !blockElement.contains(range.commonAncestorContainer))
+      return;
+
+    const startTokenIndex = Number(
+      range.startContainer.parentElement?.getAttribute("data-token-index") || 0
+    );
+    const endTokenIndex = Number(
+      range.endContainer.parentElement?.getAttribute("data-token-index") || 0
+    );
+
+    const startOffset = range.startOffset;
+    const endOffset = range.endOffset;
+
+    updateBlock(selectedBlockId, (block) => {
+      const newValue: TextBlockValue[] = [];
+      const currentOffset = 0;
+
+      const applyFormattingToSegment = (
+        text: string,
+        formats: Array<"b" | "i" | "u" | undefined>,
+        start: number,
+        end: number
+      ) => {
+        if (start > 0) {
+          newValue.push([text.slice(0, start), formats]);
+        }
+        const newFormats = formats.includes(newFormatting)
+          ? formats
+          : [...formats, newFormatting];
+        newValue.push([text.slice(start, end), newFormats]);
+        if (end < text.length) {
+          newValue.push([text.slice(end), formats]);
+        }
+      };
+
+      if (startTokenIndex === endTokenIndex) {
+        const [text, formats] = block.value[startTokenIndex];
+        if (startTokenIndex > 0) {
+          const tokensBefore = block.value.slice(0, startTokenIndex);
+          newValue.push(...tokensBefore);
+        }
+        applyFormattingToSegment(text, formats, startOffset, endOffset);
+        if (startTokenIndex < block.value.length - 1) {
+          const tokensAfter = block.value.slice(startTokenIndex + 1);
+          newValue.push(...tokensAfter);
+        }
+      } else {
+        block.value.forEach(([text, formats], index) => {
+          const start = currentOffset;
+          const end = start + text.length;
+          if (index === startTokenIndex) {
+            applyFormattingToSegment(text, formats, startOffset, end);
+          } else if (index === endTokenIndex) {
+            applyFormattingToSegment(text, formats, start, endOffset);
+          } else {
+            newValue.push([text, formats]);
+          }
+        });
+      }
+
+      return { ...block, value: newValue };
+    });
+
+    // Force re-render to update the DOM
+    setBlocks((prevBlocks) => [...prevBlocks]);
+  };
 
   const handleBlockChange: React.FormEventHandler<HTMLDivElement> = (e) => {
     const target = e.target as HTMLDivElement;
@@ -157,19 +229,15 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   };
 
   const renderBlockContent = (value: TextBlockValue[]) => {
-    return value.map(([text, formatting], index) =>
-      formatting ? (
-        <span
-          key={index}
-          data-index={index}
-          className={formattingToClass(formatting)}
-        >
-          {text}
-        </span>
-      ) : (
-        text
-      )
-    );
+    return value.map(([text, formatting], index) => (
+      <span
+        key={index}
+        data-token-index={index}
+        className={formattingToClass(formatting)}
+      >
+        {text}
+      </span>
+    ));
   };
 
   return (
