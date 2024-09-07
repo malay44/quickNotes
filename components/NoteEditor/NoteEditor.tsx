@@ -26,11 +26,15 @@ const initialContent1: NoteTextBlock[] = [
 
 const NoteEditor: React.FC<NoteEditorProps> = ({
   initialContent = initialContent1,
-  onChange,
 }) => {
   const [blocks, setBlocks] = useState<NoteTextBlock[]>(initialContent);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const blockRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const cursorPositionRef = useRef<{
+    container: Node;
+    position: number;
+  } | null>(null);
+  const selectedBlockRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (blocks.length === 0) {
@@ -38,7 +42,29 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   }, []);
 
-  console.log(blocks);
+  // set cursor position
+  useEffect(() => {
+    if (selectedBlockId) {
+      const selectBlockRef = blockRefs.current[selectedBlockId];
+      if (selectBlockRef) {
+        selectedBlockRef.current = selectBlockRef;
+      }
+    }
+  }, [selectedBlockId]);
+
+  useEffect(() => {
+    if (cursorPositionRef.current?.container) {
+      const range = document.createRange();
+      range.setStart(
+        cursorPositionRef.current.container,
+        cursorPositionRef.current.position
+      );
+      range.collapse(true);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+  });
 
   const createNewBlock = () => {
     const newBlock: NoteTextBlock = {
@@ -60,72 +86,29 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       const updatedBlocks = prevBlocks.map((block) =>
         block.id === id ? updater(block) : block
       );
-      onChange?.(updatedBlocks);
       return updatedBlocks;
     });
-    // Force re-render
-    setBlocks((prevBlocks) => [...prevBlocks]);
   };
 
-  const applyFormatting = (formatting: "b" | "i" | "u") => {
-    if (!selectedBlockId) return;
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    const blockElement = blockRefs.current[selectedBlockId];
-    if (!blockElement || !blockElement.contains(range.commonAncestorContainer))
-      return;
-
-    updateBlock(selectedBlockId, (block) => {
-      const newValue: TextBlockValue[] = [];
-      let currentIndex = 0;
-
-      block.value.forEach(([text, formats]) => {
-        const segmentStart = currentIndex;
-        const segmentEnd = segmentStart + text.length;
-
-        if (
-          range.startOffset <= segmentEnd &&
-          range.endOffset >= segmentStart
-        ) {
-          const start = Math.max(0, range.startOffset - segmentStart);
-          const end = Math.min(text.length, range.endOffset - segmentStart);
-
-          if (start > 0) {
-            newValue.push([text.slice(0, start), formats]);
-          }
-
-          const selectedText = text.slice(start, end);
-          const newFormats = formats.includes(formatting)
-            ? formats.filter((f) => f !== formatting)
-            : [...formats, formatting];
-          newValue.push([selectedText, newFormats]);
-
-          if (end < text.length) {
-            newValue.push([text.slice(end), formats]);
-          }
-        } else {
-          newValue.push([text, formats]);
-        }
-
-        currentIndex = segmentEnd;
-      });
-
-      return { ...block, value: newValue };
-    });
-  };
+  const applyFormatting = (formatting?: "b" | "i" | "u") => {};
 
   const handleBlockChange: React.FormEventHandler<HTMLDivElement> = (e) => {
     const target = e.target as HTMLDivElement;
     const blockId = target.getAttribute("data-block-id");
     if (!blockId) return;
 
+    // get the position of the cursor in the contenteditable div which has multiple nodes
     const selection = window.getSelection();
     const range = selection?.getRangeAt(0);
     const startContainer = range?.startContainer;
     const startOffset = range?.startOffset;
+
+    // set the cursor position in the cursorPositionRef to be used
+    // later to restore the cursor position
+    cursorPositionRef.current = {
+      container: startContainer as Node,
+      position: startOffset || 0,
+    };
 
     updateBlock(blockId, (block) => {
       const newValue: TextBlockValue[] = [];
@@ -147,47 +130,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
       return { ...block, value: newValue };
     });
-
-    // Restore cursor position
-    setTimeout(() => {
-      const updatedBlock = blockRefs.current[blockId];
-      if (updatedBlock && startContainer && startOffset !== undefined) {
-        const newRange = document.createRange();
-        let currentNode: Node | null = updatedBlock;
-        let currentOffset = 0;
-
-        const traverse = (node: Node): boolean => {
-          if (node === startContainer) {
-            newRange.setStart(node, startOffset);
-            newRange.setEnd(node, startOffset);
-            return true;
-          }
-
-          if (node.nodeType === Node.TEXT_NODE) {
-            currentOffset += node.textContent?.length || 0;
-          } else if (node.nodeType === Node.ELEMENT_NODE) {
-            for (const childNode of Array.from(node.childNodes)) {
-              if (traverse(childNode)) {
-                return true;
-              }
-            }
-          }
-
-          return false;
-        };
-
-        traverse(updatedBlock);
-
-        if (!newRange.startContainer) {
-          // If the exact node wasn't found, set the cursor at the end
-          newRange.setStart(updatedBlock, updatedBlock.childNodes.length);
-          newRange.setEnd(updatedBlock, updatedBlock.childNodes.length);
-        }
-
-        selection?.removeAllRanges();
-        selection?.addRange(newRange);
-      }
-    }, 0);
   };
 
   const handleAlignment = (align: "left" | "center" | "right") => {
@@ -215,11 +157,19 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   };
 
   const renderBlockContent = (value: TextBlockValue[]) => {
-    return value.map(([text, formatting], index) => (
-      <span key={index} className={formattingToClass(formatting)}>
-        {text}
-      </span>
-    ));
+    return value.map(([text, formatting], index) =>
+      formatting ? (
+        <span
+          key={index}
+          data-index={index}
+          className={formattingToClass(formatting)}
+        >
+          {text}
+        </span>
+      ) : (
+        text
+      )
+    );
   };
 
   return (
