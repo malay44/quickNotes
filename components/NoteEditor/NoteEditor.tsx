@@ -209,7 +209,21 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         });
       }
 
-      return { ...block, value: newValue };
+      // merge nodes with same formats
+      const mergedValue: TextBlockValue[] = [];
+      newValue.forEach(([text, formats]) => {
+        formats.sort();
+        if (
+          mergedValue.length > 0 &&
+          mergedValue[mergedValue.length - 1][1].join("") === formats.join("")
+        ) {
+          mergedValue[mergedValue.length - 1][0] += text;
+        } else {
+          mergedValue.push([text, formats]);
+        }
+      });
+
+      return { ...block, value: mergedValue };
     });
 
     // Restore the selection state after formatting
@@ -348,12 +362,27 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   return (
     <div className="p-2 h-full">
       <div className="flex gap-2 mb-2">
-        <Button onClick={() => applyFormatting("b")}>B</Button>
-        <Button onClick={() => applyFormatting("i")}>I</Button>
-        <Button onClick={() => applyFormatting("u")}>U</Button>
-        <Button onClick={() => handleAlignment("left")}>Left</Button>
-        <Button onClick={() => handleAlignment("center")}>Center</Button>
-        <Button onClick={() => handleAlignment("right")}>Right</Button>
+        <Button
+          variant="outline"
+          onClick={() => applyFormatting("b")}
+        >
+          B
+        </Button>
+        <Button variant="outline" onClick={() => applyFormatting("i")}>
+          I
+        </Button>
+        <Button variant="outline" onClick={() => applyFormatting("u")}>
+          U
+        </Button>
+        <Button variant="outline" onClick={() => handleAlignment("left")}>
+          Left
+        </Button>
+        <Button variant="outline" onClick={() => handleAlignment("center")}>
+          Center
+        </Button>
+        <Button variant="outline" onClick={() => handleAlignment("right")}>
+          Right
+        </Button>
         <select
           className="border rounded-md p-1 bg-background"
           onChange={(e) => handleFontSize(Number(e.target.value))}
