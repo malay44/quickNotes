@@ -5,10 +5,7 @@ import { updateNote, deleteNote } from "@/Redux/notesSlice";
 import { RootState } from "@/Redux/store";
 import useDebounce from "@/hooks/useDebounce";
 
-interface NoteEditorProps {
-  initialContent: string;
-  onContentChange: (content: string) => void;
-}
+interface NoteEditorProps {}
 
 const NoteEditor: React.FC<NoteEditorProps> = () => {
   const contentEditableRef = useRef<HTMLDivElement>(null);

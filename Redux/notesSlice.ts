@@ -4,7 +4,7 @@ export interface Note {
   title: string;
   content: string;
   summary: string;
-  date: Date;
+  date: string;
   pinned: boolean;
 }
 
@@ -38,7 +38,7 @@ const notesSlice = createSlice({
         title: action.payload.title,
         content: action.payload.content,
         summary: action.payload.summary || "",
-        date: new Date(),
+        date: new Date().toISOString(),
         pinned: false,
       };
       state.notes.unshift(newNote);
@@ -52,12 +52,16 @@ const notesSlice = createSlice({
         summary?: string;
       }>
     ) => {
-      const note = state.notes.find((n) => n.id === action.payload.id);
-      if (note) {
-        note.title = action.payload.title || note.title;
-        note.content = action.payload.content || note.content;
-        note.summary = action.payload.summary || note.summary;
-        note.date = new Date();
+      const { id, title, content, summary } = action.payload;
+      const noteIndex = state.notes.findIndex((note) => note.id === id);
+      if (noteIndex !== -1) {
+        state.notes[noteIndex] = {
+          ...state.notes[noteIndex],
+          title: title || state.notes[noteIndex].title,
+          content: content || state.notes[noteIndex].content,
+          summary: summary || state.notes[noteIndex].summary,
+          date: new Date().toISOString(), // Store date as ISO string
+        };
       }
     },
     deleteNote: (state, action: PayloadAction<string>) => {
