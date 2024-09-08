@@ -4,8 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { updateNote, deleteNote } from "@/Redux/notesSlice";
 import { RootState } from "@/Redux/store";
 import useDebounce from "@/hooks/useDebounce";
-import { Sparkles } from "lucide-react";
-import { mockGlossary } from "@/lib/aiService";
+import { GlossaryButton } from "../GlossaryButton";
 
 interface NoteEditorProps {}
 
@@ -25,11 +24,17 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
   useEffect(() => {
     if (
       contentEditableRef.current &&
+      highlightOverlayRef.current &&
       contentEditableRef.current.innerHTML !== selectedNote?.content
     ) {
       contentEditableRef.current.innerHTML = selectedNote?.content || "";
+      highlightOverlayRef.current.innerHTML = selectedNote?.content || "";
     }
-  }, []);
+  }, [selectedNote]);
+
+  useEffect(() => {
+    highlightGlossaryTerms();
+  }, [selectedNote?.glossary]);
 
   const handleFormat = (command: string, value?: string) => {
     document.execCommand(command, false, value);
@@ -71,13 +76,14 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
       const content = contentEditableRef.current.innerHTML;
       let newContent = content;
 
-      Object.keys(mockGlossary).forEach((term) => {
-        const regex = new RegExp(`\\b${term}\\b`, "gi");
-        newContent = newContent.replace(
-          regex,
-          `<mark class="bg-yellow-200">$&</mark>`
-        );
-      });
+      selectedNote?.glossary &&
+        Object.keys(selectedNote.glossary).forEach((term) => {
+          const regex = new RegExp(`\\b${term}\\b`, "gi");
+          newContent = newContent.replace(
+            regex,
+            `<mark class="bg-yellow-200">$&</mark>`
+          );
+        });
 
       if (highlightOverlayRef.current) {
         highlightOverlayRef.current.innerHTML = newContent;
@@ -117,28 +123,21 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
             </option>
           ))}
         </select>
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-10 w-10"
-          onClick={highlightGlossaryTerms}
-        >
-          <Sparkles className="h-4 w-4" />
-        </Button>
+        <GlossaryButton noteId={selectedNoteId} text={selectedNote?.content} />
       </div>
-      <div className="relative flex-grow">
+      <div className="relative flex-grow overflow-auto border rounded-md">
         <div
-          className="absolute inset-0 focus-visible:outline-none border rounded-md p-2 mb-2 overflow-auto"
+          className="absolute inset-0 focus-visible:outline-none p-2 mb-2 h-max"
           contentEditable="true"
           ref={contentEditableRef}
           onInput={handleInput}
         />
         <div
           ref={highlightOverlayRef}
-          className="absolute inset-0 pointer-events-none border rounded-md p-2 mb-2 overflow-auto"
+          className="absolute inset-0 pointer-events-none p-2 mb-2"
         />
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 mt-2">
         <Button
           variant="outline"
           onClick={handleSave}

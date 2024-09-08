@@ -6,6 +6,7 @@ export interface Note {
   summary: string;
   date: string;
   pinned: boolean;
+  glossary?: Record<string, string>;
 }
 
 interface NotesState {
@@ -85,6 +86,15 @@ const notesSlice = createSlice({
     setSelectedNoteId: (state, action: PayloadAction<string | null>) => {
       state.selectedNoteId = action.payload;
     },
+    setGlossary: (
+      state,
+      action: PayloadAction<{ id: string; glossary: Record<string, string> }>
+    ) => {
+      const note = state.notes.find((n) => n.id === action.payload.id);
+      if (note) {
+        note.glossary = action.payload.glossary;
+      }
+    },
   },
 });
 
@@ -94,5 +104,6 @@ export const {
   deleteNote,
   togglePinNote,
   setSelectedNoteId,
+  setGlossary,
 } = notesSlice.actions;
 export default notesSlice.reducer;
