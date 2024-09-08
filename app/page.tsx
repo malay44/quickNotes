@@ -2,10 +2,8 @@
 
 import * as React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Search, Plus } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 import { v4 as uuid } from "uuid";
-
-import { Input } from "@/components/ui/input";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -21,6 +19,14 @@ import NoteHeader from "@/components/NoteHeader";
 
 export default function NotesPage() {
   const dispatch = useDispatch();
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const selectedNoteId = useSelector(
     (state: RootState) => state.notes.selectedNoteId
@@ -31,6 +37,38 @@ export default function NotesPage() {
     dispatch(addNote(newNote));
     dispatch(setSelectedNoteId(newNote.id));
   };
+
+  const handleBackToList = () => {
+    dispatch(setSelectedNoteId(null));
+  };
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-screen">
+        <div className="flex items-center justify-between px-4 py-2">
+          {selectedNoteId ? (
+            <Button variant="ghost" size="icon" onClick={handleBackToList}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          ) : (
+            <h1 className="text-2xl font-bold">Notes</h1>
+          )}
+          <Button variant="outline" size="icon" onClick={handleNewNote}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        <Separator />
+        {selectedNoteId ? (
+          <div className="flex flex-col flex-grow h-[calc(100vh-55px)]">
+            <NoteHeader id={selectedNoteId} />
+            <NoteEditor />
+          </div>
+        ) : (
+          <NoteList />
+        )}
+      </div>
+    );
+  }
 
   return (
     <ResizablePanelGroup
@@ -50,14 +88,6 @@ export default function NotesPage() {
           </Button>
         </div>
         <Separator />
-        <div className="bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <form>
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search" className="pl-8" />
-            </div>
-          </form>
-        </div>
         <NoteList />
       </ResizablePanel>
       <ResizableHandle withHandle />

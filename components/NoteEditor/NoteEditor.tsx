@@ -93,7 +93,7 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
 
   return (
     <div className="p-2 h-full flex flex-col">
-      <div className="flex gap-2 mb-2">
+      <div className="flex gap-2 mb-2 flex-wrap">
         <Button variant="outline" onClick={() => handleFormat("bold")}>
           B
         </Button>
@@ -127,7 +127,7 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
       </div>
       <div className="relative flex-grow overflow-auto border rounded-md">
         <div
-          className="absolute inset-0 focus-visible:outline-none p-2 mb-2 h-max"
+          className="absolute inset-0 focus-visible:outline-none p-2 mb-2 h-full"
           contentEditable="true"
           ref={contentEditableRef}
           onInput={handleInput}
