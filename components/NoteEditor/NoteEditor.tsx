@@ -17,8 +17,8 @@ const initialContent1: NoteTextBlock[] = [
     align: "left",
     fontSize: 16,
     value: [
-      ["Hello, wo", ["b"]],
-      ["rld! ", []],
+      ["Hello, w", ["b"]],
+      ["0rld! ", []],
       ["This is a test", ["i"]],
     ],
   },
@@ -30,11 +30,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const [blocks, setBlocks] = useState<NoteTextBlock[]>(initialContent);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const blockRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  const cursorPositionRef = useRef<{
-    container: Node;
-    position: number;
+  const selectionRef = useRef<{
+    range: Range;
+    blockId: string;
+    startOffset: number;
+    endOffset: number;
   } | null>(null);
-  const selectedBlockRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (blocks.length === 0) {
@@ -42,27 +43,26 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   }, []);
 
-  // set cursor position
+  // Modify the useEffect for cursor position
   useEffect(() => {
-    if (selectedBlockId) {
-      const selectBlockRef = blockRefs.current[selectedBlockId];
-      if (selectBlockRef) {
-        selectedBlockRef.current = selectBlockRef;
+    if (selectionRef.current) {
+      const { range, blockId, startOffset, endOffset } = selectionRef.current;
+      const block = blockRefs.current[blockId];
+      if (block) {
+        const selection = window.getSelection();
+        if (selection) {
+          try {
+            const newRange = document.createRange();
+            newRange.setStart(range.startContainer, startOffset);
+            newRange.setEnd(range.endContainer, endOffset);
+            selection.removeAllRanges();
+            if (startOffset === 0 && endOffset === 0) newRange.collapse();
+            selection.addRange(newRange);
+          } catch (error) {
+            console.error("Error restoring selection:", error);
+          }
+        }
       }
-    }
-  }, [selectedBlockId]);
-
-  useEffect(() => {
-    if (cursorPositionRef.current?.container) {
-      const range = document.createRange();
-      range.setStart(
-        cursorPositionRef.current.container,
-        cursorPositionRef.current.position
-      );
-      range.collapse(true);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
     }
   });
 
@@ -94,29 +94,44 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     if (!selectedBlockId) return;
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
+    console.log("selection.anchorNode", selection.anchorNode);
+    console.log("selection.focusNode", selection.focusNode);
+    console.log("selection.anchorNode", selection.anchorNode);
+    console.log("selection.anchorOffset", selection.anchorOffset);
+    console.log("selection.focusOffset", selection.focusOffset);
 
-    const range = selection.getRangeAt(0);
+    const {
+      startContainer,
+      endContainer,
+      startOffset,
+      endOffset,
+      commonAncestorContainer,
+    } = selection.getRangeAt(0);
+
+    selectionRef.current = {
+      range: selection.getRangeAt(0),
+      blockId: selectedBlockId,
+      startOffset: 0,
+      endOffset: 0,
+    };
+
     const blockElement = blockRefs.current[selectedBlockId];
-    if (!blockElement || !blockElement.contains(range.commonAncestorContainer))
+    if (!blockElement || !blockElement.contains(commonAncestorContainer))
       return;
 
     const firstSelectedTokenIndex = Number(
-      range.startContainer.parentElement?.getAttribute("data-token-index") || 0
+      startContainer.parentElement?.getAttribute("data-token-index") || 0
     );
     const lastSelectedTokenIndex = Number(
-      range.endContainer.parentElement?.getAttribute("data-token-index") || 0
+      endContainer.parentElement?.getAttribute("data-token-index") || 0
     );
-
-    const startOffset = range.startOffset;
-    const endOffset = range.endOffset;
 
     updateBlock(selectedBlockId, (block) => {
       const newValue: TextBlockValue[] = [];
-      const currentOffset = 0;
 
       const allSelectedTokens = block.value.slice(
         firstSelectedTokenIndex,
-        lastSelectedTokenIndex
+        lastSelectedTokenIndex + 1
       );
       const invertFormatting =
         allSelectedTokens.every(([, formats]) =>
@@ -144,7 +159,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         }
       };
 
-      if (firstSelectedTokenIndex === lastSelectedTokenIndex) {
+      // if the selection is a single token, apply the formatting to the token
+      if (allSelectedTokens.length === 1) {
         const [text, formats] = block.value[firstSelectedTokenIndex];
         if (firstSelectedTokenIndex > 0) {
           const tokensBefore = block.value.slice(0, firstSelectedTokenIndex);
@@ -157,12 +173,18 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         }
       } else {
         block.value.forEach(([text, formats], index) => {
-          const start = currentOffset;
-          const end = start + text.length;
           if (index === firstSelectedTokenIndex) {
-            applyFormattingToSegment(text, formats, startOffset, end);
+            applyFormattingToSegment(text, formats, startOffset, text.length);
           } else if (index === lastSelectedTokenIndex) {
-            applyFormattingToSegment(text, formats, start, endOffset);
+            applyFormattingToSegment(text, formats, 0, endOffset);
+          } else if (
+            index > firstSelectedTokenIndex &&
+            index < lastSelectedTokenIndex
+          ) {
+            newValue.push([
+              text,
+              Array.from(new Set([...formats, newFormatting])),
+            ]);
           } else {
             newValue.push([text, formats]);
           }
@@ -178,18 +200,18 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     const blockId = target.getAttribute("data-block-id");
     if (!blockId) return;
 
-    // get the position of the cursor in the contenteditable div which has multiple nodes
     const selection = window.getSelection();
-    const range = selection?.getRangeAt(0);
-    const startContainer = range?.startContainer;
-    const startOffset = range?.startOffset;
-
-    // set the cursor position in the cursorPositionRef to be used
-    // later to restore the cursor position
-    cursorPositionRef.current = {
-      container: startContainer as Node,
-      position: startOffset || 0,
-    };
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      selectionRef.current = {
+        range: range.cloneRange(),
+        blockId,
+        startOffset: range.startOffset,
+        endOffset: range.endOffset,
+      };
+    } else {
+      selectionRef.current = null;
+    }
 
     updateBlock(blockId, (block) => {
       const newValue: TextBlockValue[] = [];
@@ -288,6 +310,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             suppressContentEditableWarning
             onInput={handleBlockChange}
             onFocus={() => setSelectedBlockId(block.id)}
+            onBlur={() => {
+              // Clear the selection when the block loses focus
+              selectionRef.current = null;
+            }}
             style={{
               textAlign: block.align,
               fontSize: `${block.fontSize}px`,
