@@ -42,6 +42,7 @@ const notesSlice = createSlice({
         pinned: false,
       };
       state.notes.unshift(newNote);
+      state.selectedNoteId = newNote.id;
     },
     updateNote: (
       state,
@@ -67,6 +68,7 @@ const notesSlice = createSlice({
     deleteNote: (state, action: PayloadAction<string>) => {
       state.notes = state.notes.filter((n) => n.id !== action.payload);
       state.pinnedNotes = state.pinnedNotes.filter((n) => n !== action.payload);
+      state.selectedNoteId = state.notes.length > 0 ? state.notes[0].id : null;
     },
     togglePinNote: (state, action: PayloadAction<string>) => {
       const note = state.notes.find((n) => n.id === action.payload);

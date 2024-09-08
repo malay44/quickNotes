@@ -26,8 +26,6 @@ export default function NotesPage() {
     (state: RootState) => state.notes.selectedNoteId
   );
 
-  console.log(selectedNoteId);
-
   const handleNewNote = () => {
     const newNote = { title: "New Note", content: "", id: uuid() };
     dispatch(addNote(newNote));

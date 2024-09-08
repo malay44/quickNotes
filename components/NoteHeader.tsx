@@ -3,12 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Pin, Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  updateNote,
-  deleteNote,
-  togglePinNote,
-  setSelectedNoteId,
-} from "@/Redux/notesSlice";
+import { updateNote, deleteNote, togglePinNote } from "@/Redux/notesSlice";
 import { RootState } from "@/Redux/store";
 
 interface NoteHeaderProps {
@@ -27,7 +22,6 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({ id }) => {
 
   const handleDeleteNote = () => {
     dispatch(deleteNote(note.id));
-    dispatch(setSelectedNoteId(null));
   };
 
   const handleTogglePin = () => {
