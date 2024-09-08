@@ -1,97 +1,55 @@
+import React from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Note, getNotes, togglePinNote } from "@/lib/notesService";
+import { PinIcon } from "lucide-react";
 
-const items = [
-  {
-    id: 1,
-    name: "John Doe",
-    subject: "Hello",
-    text: "This is a test note",
-    read: false,
-    date: new Date(),
-    labels: ["work", "personal"],
-  },
-  {
-    id: 2,
-    name: "Jane Doe",
-    subject: "Hello",
-    text: "This is a test note",
-    read: false,
-    date: new Date(),
-    labels: ["work", "personal"],
-  },
-  {
-    id: 3,
-    name: "John Doe",
-    subject: "Hello",
-    text: "This is a test note",
-    read: false,
-    date: new Date(),
-    labels: ["work", "personal"],
-  },
-  {
-    id: 4,
-    name: "John Doe",
-    subject: "Hello",
-    text: "This is a test note",
-    read: false,
-    date: new Date(),
-    labels: ["work", "personal"],
-  },
-];
+interface NoteListProps {
+  selectedNoteId: number | null;
+  onSelectNote: (note: Note) => void;
+}
 
-export function NoteList() {
-  const note = {
-    selected: 1,
-  };
+export function NoteList({ selectedNoteId, onSelectNote }: NoteListProps) {
+  const notes = getNotes();
 
   return (
     <ScrollArea className="h-screen">
       <div className="flex flex-col gap-2 p-4 pt-0">
-        {items.map((item) => (
+        {notes.map((note) => (
           <button
-            key={item.id}
+            key={note.id}
             className={cn(
               "flex flex-col items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:bg-accent",
-              note.selected === item.id && "bg-muted"
+              selectedNoteId === note.id && "bg-muted"
             )}
+            onClick={() => onSelectNote(note)}
           >
             <div className="flex w-full flex-col gap-1">
               <div className="flex items-center">
                 <div className="flex items-center gap-2">
-                  <div className="font-semibold">{item.name}</div>
-                  {!item.read && (
-                    <span className="flex h-2 w-2 rounded-full bg-blue-600" />
-                  )}
+                  <div className="font-semibold">{note.title}</div>
+                  {note.pinned && <PinIcon className="h-4 w-4 text-blue-600" />}
                 </div>
                 <div
                   className={cn(
                     "ml-auto text-xs",
-                    note.selected === item.id
+                    selectedNoteId === note.id
                       ? "text-foreground"
                       : "text-muted-foreground"
                   )}
                 >
-                  {item.date.toLocaleDateString("en-GB", {
+                  {note.date.toLocaleDateString("en-GB", {
                     day: "2-digit",
                     month: "short",
                     year: "numeric",
                   })}
                 </div>
               </div>
-              <div className="text-xs font-medium">{item.subject}</div>
             </div>
             <div className="line-clamp-2 text-xs text-muted-foreground">
-              {item.text.substring(0, 300)}
+              {note.content.substring(0, 300)}
             </div>
-            {item.labels.length ? (
-              <div className="flex items-center gap-2">
-                {item.labels.map((label) => (
-                  <Badge key={label}>{label}</Badge>
-                ))}
-              </div>
-            ) : null}
           </button>
         ))}
       </div>
