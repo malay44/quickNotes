@@ -33,7 +33,9 @@ export function NoteList() {
             <div className="flex w-full flex-col gap-1">
               <div className="flex items-center">
                 <div className="flex items-center gap-2">
-                  <div className="font-semibold">{note.title}</div>
+                  <div className="font-semibold">
+                    {note.title || "New Note"}
+                  </div>
                   {note.pinned && <PinIcon className="h-4 w-4 text-blue-600" />}
                 </div>
                 <div className="ml-auto text-xs text-muted-foreground">

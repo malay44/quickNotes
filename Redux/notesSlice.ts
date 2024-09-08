@@ -57,9 +57,9 @@ const notesSlice = createSlice({
       if (noteIndex !== -1) {
         state.notes[noteIndex] = {
           ...state.notes[noteIndex],
-          title: title || state.notes[noteIndex].title,
-          content: content || state.notes[noteIndex].content,
-          summary: summary || state.notes[noteIndex].summary,
+          title: title ?? state.notes[noteIndex].title,
+          content: content ?? state.notes[noteIndex].content,
+          summary: summary ?? state.notes[noteIndex].summary,
           date: new Date().toISOString(), // Store date as ISO string
         };
       }
