@@ -30,11 +30,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const [blocks, setBlocks] = useState<NoteTextBlock[]>(initialContent);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const blockRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  const selectionRef = useRef<{
-    range: Range;
+  const [selectionState, setSelectionState] = useState<{
     blockId: string;
-    startOffset: number;
-    endOffset: number;
+    start: number;
+    end: number;
   } | null>(null);
 
   useEffect(() => {
@@ -43,28 +42,51 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   }, []);
 
-  // Modify the useEffect for cursor position
   useEffect(() => {
-    if (selectionRef.current) {
-      const { range, blockId, startOffset, endOffset } = selectionRef.current;
+    if (selectionState) {
+      const { blockId, start, end } = selectionState;
       const block = blockRefs.current[blockId];
       if (block) {
+        const range = document.createRange();
         const selection = window.getSelection();
-        if (selection) {
-          try {
-            const newRange = document.createRange();
-            newRange.setStart(range.startContainer, startOffset);
-            newRange.setEnd(range.endContainer, endOffset);
-            selection.removeAllRanges();
-            if (startOffset === 0 && endOffset === 0) newRange.collapse();
-            selection.addRange(newRange);
-          } catch (error) {
-            console.error("Error restoring selection:", error);
+
+        // Find the correct text node and offset
+        let currentOffset = 0;
+        let startNode: Node | null = null;
+        let endNode: Node | null = null;
+
+        const traverse = (node: Node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const length = node.textContent?.length || 0;
+            if (!startNode && currentOffset + length >= start) {
+              startNode = node;
+              range.setStart(node, start - currentOffset);
+            }
+            if (!endNode && currentOffset + length >= end) {
+              endNode = node;
+              range.setEnd(node, end - currentOffset);
+              return true;
+            }
+            currentOffset += length;
+          } else {
+            for (const childNode of Array.from(node.childNodes)) {
+              if (traverse(childNode)) return true;
+            }
           }
+          return false;
+        };
+
+        traverse(block);
+
+        if (startNode && endNode && selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+          // Ensure the block is focused
+          block.focus();
         }
       }
     }
-  });
+  }, [selectionState, blocks]);
 
   const createNewBlock = () => {
     const newBlock: NoteTextBlock = {
@@ -94,11 +116,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     if (!selectedBlockId) return;
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
-    console.log("selection.anchorNode", selection.anchorNode);
-    console.log("selection.focusNode", selection.focusNode);
-    console.log("selection.anchorNode", selection.anchorNode);
-    console.log("selection.anchorOffset", selection.anchorOffset);
-    console.log("selection.focusOffset", selection.focusOffset);
 
     const {
       startContainer,
@@ -107,13 +124,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       endOffset,
       commonAncestorContainer,
     } = selection.getRangeAt(0);
-
-    selectionRef.current = {
-      range: selection.getRangeAt(0),
-      blockId: selectedBlockId,
-      startOffset: 0,
-      endOffset: 0,
-    };
 
     const blockElement = blockRefs.current[selectedBlockId];
     if (!blockElement || !blockElement.contains(commonAncestorContainer))
@@ -125,6 +135,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     const lastSelectedTokenIndex = Number(
       endContainer.parentElement?.getAttribute("data-token-index") || 0
     );
+
+    // Store the current selection state
+    const currentSelectionState = {
+      blockId: selectedBlockId,
+      start: getTextOffset(blockElement, startContainer, startOffset),
+      end: getTextOffset(blockElement, endContainer, endOffset),
+    };
 
     updateBlock(selectedBlockId, (block) => {
       const newValue: TextBlockValue[] = [];
@@ -193,6 +210,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
       return { ...block, value: newValue };
     });
+
+    // Restore the selection state after formatting
+    setSelectionState(currentSelectionState);
   };
 
   const handleBlockChange: React.FormEventHandler<HTMLDivElement> = (e) => {
@@ -203,14 +223,20 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
-      selectionRef.current = {
-        range: range.cloneRange(),
-        blockId,
-        startOffset: range.startOffset,
-        endOffset: range.endOffset,
-      };
-    } else {
-      selectionRef.current = null;
+      const blockElement = blockRefs.current[blockId];
+      if (blockElement) {
+        const start = getTextOffset(
+          blockElement,
+          range.startContainer,
+          range.startOffset
+        );
+        const end = getTextOffset(
+          blockElement,
+          range.endContainer,
+          range.endOffset
+        );
+        setSelectionState({ blockId, start, end });
+      }
     }
 
     updateBlock(blockId, (block) => {
@@ -271,6 +297,53 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     ));
   };
 
+  const getTextOffset = (root: Node, target: Node, offset: number): number => {
+    let totalOffset = 0;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      if (walker.currentNode === target) {
+        return totalOffset + offset;
+      }
+      totalOffset += walker.currentNode.textContent?.length || 0;
+    }
+    return totalOffset;
+  };
+
+  // Add this function to handle selection changes
+  const handleSelectionChange = () => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const blockElement = range.commonAncestorContainer.parentElement;
+      const blockId = blockElement?.getAttribute("data-block-id");
+
+      if (blockId && blockRefs.current[blockId]) {
+        // Add a null check for blockElement
+        if (blockElement) {
+          const start = getTextOffset(
+            blockElement,
+            range.startContainer,
+            range.startOffset
+          );
+          const end = getTextOffset(
+            blockElement,
+            range.endContainer,
+            range.endOffset
+          );
+          setSelectionState({ blockId, start, end });
+        }
+      }
+    }
+  };
+
+  // Add this useEffect to listen for selection changes
+  useEffect(() => {
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+    };
+  }, []);
+
   return (
     <div className="p-2 h-full">
       <div className="flex gap-2 mb-2">
@@ -312,7 +385,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             onFocus={() => setSelectedBlockId(block.id)}
             onBlur={() => {
               // Clear the selection when the block loses focus
-              selectionRef.current = null;
+              setSelectionState(null);
             }}
             style={{
               textAlign: block.align,
