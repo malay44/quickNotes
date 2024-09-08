@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { Button } from "../ui/button";
 import { useDispatch, useSelector } from "react-redux";
-import { updateNote, deleteNote } from "@/Redux/notesSlice";
+import { updateNote, deleteNote, setSelectedNoteId } from "@/Redux/notesSlice";
 import { RootState } from "@/Redux/store";
 import useDebounce from "@/hooks/useDebounce";
 
@@ -53,6 +53,7 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
   const handleDelete = () => {
     if (selectedNoteId !== null) {
       dispatch(deleteNote(selectedNoteId));
+      dispatch(setSelectedNoteId(null));
     }
   };
 
