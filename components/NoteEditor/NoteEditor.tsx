@@ -3,6 +3,7 @@ import { Button } from "../ui/button";
 import { useDispatch, useSelector } from "react-redux";
 import { updateNote, deleteNote } from "@/Redux/notesSlice";
 import { RootState } from "@/Redux/store";
+import useDebounce from "@/hooks/useDebounce";
 
 interface NoteEditorProps {
   initialContent: string;
@@ -44,10 +45,13 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
         updateNote({
           id: selectedNoteId,
           content: contentEditableRef.current?.innerHTML || "",
+          summary: contentEditableRef.current?.innerText?.slice(0, 100) || "",
         })
       );
     }
   };
+
+  const debouncedSave = useDebounce(handleSave, 500);
 
   const handleDelete = () => {
     if (selectedNoteId !== null) {
@@ -92,15 +96,7 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
         className="flex-grow focus-visible:outline-none border rounded-md p-2 mb-2 overflow-auto"
         contentEditable="true"
         ref={contentEditableRef}
-        onInput={(event) => {
-          const target = event.target as HTMLDivElement;
-          dispatch(
-            updateNote({
-              id: selectedNoteId as string,
-              content: target.innerHTML || "",
-            })
-          );
-        }}
+        onInput={debouncedSave}
       />
       <div className="flex gap-2">
         <Button

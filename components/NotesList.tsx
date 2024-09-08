@@ -45,12 +45,9 @@ export function NoteList() {
                 </div>
               </div>
             </div>
-            <div
-              className="line-clamp-2 text-xs text-muted-foreground"
-              dangerouslySetInnerHTML={{
-                __html: note.content.substring(0, 300),
-              }}
-            />
+            <div className="line-clamp-2 text-xs text-muted-foreground">
+              {note.summary || "No additional text"}
+            </div>
           </button>
         ))}
       </div>

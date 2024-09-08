@@ -3,6 +3,7 @@ export interface Note {
   id: string;
   title: string;
   content: string;
+  summary: string;
   date: Date;
   pinned: boolean;
 }
@@ -25,12 +26,18 @@ const notesSlice = createSlice({
   reducers: {
     addNote: (
       state,
-      action: PayloadAction<{ title: string; content: string; id: string }>
+      action: PayloadAction<{
+        title: string;
+        content: string;
+        id: string;
+        summary?: string;
+      }>
     ) => {
       const newNote: Note = {
         id: action.payload.id,
         title: action.payload.title,
         content: action.payload.content,
+        summary: action.payload.summary || "",
         date: new Date(),
         pinned: false,
       };
@@ -38,12 +45,18 @@ const notesSlice = createSlice({
     },
     updateNote: (
       state,
-      action: PayloadAction<{ id: string; title?: string; content?: string }>
+      action: PayloadAction<{
+        id: string;
+        title?: string;
+        content?: string;
+        summary?: string;
+      }>
     ) => {
       const note = state.notes.find((n) => n.id === action.payload.id);
       if (note) {
         note.title = action.payload.title || note.title;
         note.content = action.payload.content || note.content;
+        note.summary = action.payload.summary || note.summary;
         note.date = new Date();
       }
     },

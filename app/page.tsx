@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/resizable";
 import { Separator } from "@/components/ui/separator";
 import { NoteList } from "@/components/NotesList";
-import NoteEditor from "@/components/NoteEditor/NoteEditor";
+import NoteEditor from "@/components/NoteEditor";
 import { Button } from "@/components/ui/button";
 import {
   addNote,
