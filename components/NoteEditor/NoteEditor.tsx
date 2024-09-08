@@ -150,10 +150,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         firstSelectedTokenIndex,
         lastSelectedTokenIndex + 1
       );
-      const invertFormatting =
-        allSelectedTokens.every(([, formats]) =>
-          formats.includes(newFormatting)
-        ) || allSelectedTokens.length === 0;
+      const invertFormatting = allSelectedTokens.every(([, formats]) =>
+        formats.includes(newFormatting)
+      );
 
       const applyFormattingToSegment = (
         text: string,
@@ -170,7 +169,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             ? formats.filter((f) => f !== newFormatting)
             : formats
           : [...formats, newFormatting];
-        newValue.push([text.slice(start, end), newFormats]);
+        if (start !== end) {
+          newValue.push([text.slice(start, end), newFormats]);
+        }
         if (end < text.length) {
           newValue.push([text.slice(end), formats]);
         }
@@ -198,10 +199,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             index > firstSelectedTokenIndex &&
             index < lastSelectedTokenIndex
           ) {
-            newValue.push([
-              text,
-              Array.from(new Set([...formats, newFormatting])),
-            ]);
+            const newFormats = invertFormatting
+              ? formats.filter((f) => f !== newFormatting)
+              : Array.from(new Set([...formats, newFormatting]));
+            newValue.push([text, newFormats]);
           } else {
             newValue.push([text, formats]);
           }
