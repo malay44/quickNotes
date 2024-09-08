@@ -1,40 +1,62 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import { Button } from "../ui/button";
+import { useDispatch, useSelector } from "react-redux";
+import { updateNote, deleteNote } from "@/Redux/notesSlice";
+import { RootState } from "@/Redux/store";
 
 interface NoteEditorProps {
   initialContent: string;
   onContentChange: (content: string) => void;
 }
 
-const NoteEditor: React.FC<NoteEditorProps> = ({
-  initialContent,
-  onContentChange,
-}) => {
-  const [content, setContent] = useState(initialContent);
+const NoteEditor: React.FC<NoteEditorProps> = () => {
   const contentEditableRef = useRef<HTMLDivElement>(null);
-
-  console.log(content);
+  const dispatch = useDispatch();
+  const selectedNoteId = useSelector(
+    (state: RootState) => state.notes.selectedNoteId
+  );
+  const selectedNote = useSelector((state: RootState) =>
+    state.notes.notes.find((note) => note.id === selectedNoteId)
+  );
 
   useEffect(() => {
     if (
       contentEditableRef.current &&
-      contentEditableRef.current.innerHTML !== content
+      contentEditableRef.current.innerHTML !== selectedNote?.content
     ) {
-      contentEditableRef.current.innerHTML = content;
+      contentEditableRef.current.innerHTML = selectedNote?.content || "";
     }
-  });
+  }, [selectedNote?.content]);
 
   const handleFormat = (command: string, value?: string) => {
     document.execCommand(command, false, value);
     if (contentEditableRef.current) {
       const newContent = contentEditableRef.current.innerHTML;
-      setContent(newContent);
-      onContentChange(newContent);
+      dispatch(
+        updateNote({ id: selectedNoteId as string, content: newContent })
+      );
+    }
+  };
+
+  const handleSave = () => {
+    if (selectedNoteId !== null) {
+      dispatch(
+        updateNote({
+          id: selectedNoteId,
+          content: contentEditableRef.current?.innerHTML || "",
+        })
+      );
+    }
+  };
+
+  const handleDelete = () => {
+    if (selectedNoteId !== null) {
+      dispatch(deleteNote(selectedNoteId));
     }
   };
 
   return (
-    <div className="p-2 h-full">
+    <div className="p-2 h-full flex flex-col">
       <div className="flex gap-2 mb-2">
         <Button variant="outline" onClick={() => handleFormat("bold")}>
           B
@@ -67,15 +89,35 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         </select>
       </div>
       <div
-        className="h-full focus-visible:outline-none border rounded-md p-2"
+        className="flex-grow focus-visible:outline-none border rounded-md p-2 mb-2 overflow-auto"
         contentEditable="true"
         ref={contentEditableRef}
         onInput={(event) => {
           const target = event.target as HTMLDivElement;
-          setContent(target.innerHTML || "");
-          onContentChange(target.innerHTML || "");
+          dispatch(
+            updateNote({
+              id: selectedNoteId as string,
+              content: target.innerHTML || "",
+            })
+          );
         }}
       />
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          onClick={handleSave}
+          disabled={selectedNoteId === null}
+        >
+          Save
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleDelete}
+          disabled={selectedNoteId === null}
+        >
+          Delete
+        </Button>
+      </div>
     </div>
   );
 };

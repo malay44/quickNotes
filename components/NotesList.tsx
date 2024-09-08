@@ -1,20 +1,25 @@
 import React from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Note, getNotes, togglePinNote } from "@/lib/notesService";
+import { Note, setSelectedNoteId } from "@/Redux/notesSlice";
 import { PinIcon } from "lucide-react";
+import { RootState } from "@/Redux/store";
 
-interface NoteListProps {
-  selectedNoteId: number | null;
-  onSelectNote: (note: Note) => void;
-}
+export function NoteList() {
+  const notes = useSelector((state: RootState) => state.notes.notes);
+  const selectedNoteId = useSelector(
+    (state: RootState) => state.notes.selectedNoteId
+  );
 
-export function NoteList({ selectedNoteId, onSelectNote }: NoteListProps) {
-  const notes = getNotes();
+  const dispatch = useDispatch();
+
+  const handleSelectNote = (note: Note) => {
+    dispatch(setSelectedNoteId(note.id));
+  };
 
   return (
-    <ScrollArea className="h-screen">
+    <ScrollArea className="h-[calc(100vh-120px)]">
       <div className="flex flex-col gap-2 p-4 pt-0">
         {notes.map((note) => (
           <button
@@ -23,7 +28,7 @@ export function NoteList({ selectedNoteId, onSelectNote }: NoteListProps) {
               "flex flex-col items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:bg-accent",
               selectedNoteId === note.id && "bg-muted"
             )}
-            onClick={() => onSelectNote(note)}
+            onClick={() => handleSelectNote(note)}
           >
             <div className="flex w-full flex-col gap-1">
               <div className="flex items-center">
@@ -31,15 +36,8 @@ export function NoteList({ selectedNoteId, onSelectNote }: NoteListProps) {
                   <div className="font-semibold">{note.title}</div>
                   {note.pinned && <PinIcon className="h-4 w-4 text-blue-600" />}
                 </div>
-                <div
-                  className={cn(
-                    "ml-auto text-xs",
-                    selectedNoteId === note.id
-                      ? "text-foreground"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {note.date.toLocaleDateString("en-GB", {
+                <div className="ml-auto text-xs text-muted-foreground">
+                  {new Date(note.date).toLocaleDateString("en-GB", {
                     day: "2-digit",
                     month: "short",
                     year: "numeric",
@@ -47,9 +45,12 @@ export function NoteList({ selectedNoteId, onSelectNote }: NoteListProps) {
                 </div>
               </div>
             </div>
-            <div className="line-clamp-2 text-xs text-muted-foreground">
-              {note.content.substring(0, 300)}
-            </div>
+            <div
+              className="line-clamp-2 text-xs text-muted-foreground"
+              dangerouslySetInnerHTML={{
+                __html: note.content.substring(0, 300),
+              }}
+            />
           </button>
         ))}
       </div>

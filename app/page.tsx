@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Search, Plus, Trash, Pin } from "lucide-react";
+import { v4 as uuid } from "uuid";
 
 import { Input } from "@/components/ui/input";
 import {
@@ -14,43 +16,44 @@ import { NoteList } from "@/components/NotesList";
 import NoteEditor from "@/components/NoteEditor/NoteEditor";
 import { Button } from "@/components/ui/button";
 import {
-  Note,
   addNote,
   updateNote,
   deleteNote,
   togglePinNote,
-} from "@/lib/notesService";
+  setSelectedNoteId,
+} from "@/Redux/notesSlice";
+import { RootState } from "@/Redux/store";
 
 export default function NotesPage() {
-  const [selectedNote, setSelectedNote] = React.useState<Note | null>(null);
+  const dispatch = useDispatch();
+  const selectedNoteId = useSelector(
+    (state: RootState) => state.notes.selectedNoteId
+  );
+  const selectedNote = useSelector((state: RootState) =>
+    state.notes.notes.find((note) => note.id === selectedNoteId)
+  );
 
   const handleNewNote = () => {
-    const newNote = addNote("New Note", "");
-    setSelectedNote(newNote);
+    const newNote = { title: "New Note", content: "", id: uuid() };
+    dispatch(addNote(newNote));
+    dispatch(setSelectedNoteId(newNote.id));
   };
 
   const handleUpdateNote = (title: string, content: string) => {
     if (selectedNote) {
-      const updatedNote = updateNote(selectedNote.id, title, content);
-      if (updatedNote) {
-        setSelectedNote(updatedNote);
-      }
+      dispatch(updateNote({ id: selectedNote.id, title, content }));
     }
   };
 
   const handleDeleteNote = () => {
     if (selectedNote) {
-      deleteNote(selectedNote.id);
-      setSelectedNote(null);
+      dispatch(deleteNote(selectedNote.id));
     }
   };
 
   const handleTogglePin = () => {
     if (selectedNote) {
-      const updatedNote = togglePinNote(selectedNote.id);
-      if (updatedNote) {
-        setSelectedNote(updatedNote);
-      }
+      dispatch(togglePinNote(selectedNote.id));
     }
   };
 
@@ -80,20 +83,17 @@ export default function NotesPage() {
             </div>
           </form>
         </div>
-        <NoteList
-          selectedNoteId={selectedNote?.id || null}
-          onSelectNote={setSelectedNote}
-        />
+        <NoteList />
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel defaultSize={80} minSize={30}>
-        {selectedNote ? (
+        {selectedNoteId ? (
           <div className="flex flex-col h-full">
             <div className="flex justify-between items-center p-2">
               <Input
-                value={selectedNote.title}
+                value={selectedNote?.title}
                 onChange={(e) =>
-                  handleUpdateNote(e.target.value, selectedNote.content)
+                  handleUpdateNote(e.target.value, selectedNote?.content || "")
                 }
                 className="text-2xl font-bold"
               />
@@ -102,7 +102,7 @@ export default function NotesPage() {
                   variant="outline"
                   size="icon"
                   onClick={handleTogglePin}
-                  className={selectedNote.pinned ? "text-blue-600" : ""}
+                  className={selectedNote?.pinned ? "text-blue-600" : ""}
                 >
                   <Pin className="h-4 w-4" />
                 </Button>
@@ -117,9 +117,9 @@ export default function NotesPage() {
               </div>
             </div>
             <NoteEditor
-              initialContent={selectedNote.content}
+              initialContent={selectedNote?.content || ""}
               onContentChange={(content: string) =>
-                handleUpdateNote(selectedNote.title, content)
+                handleUpdateNote(selectedNote?.title || "", content)
               }
             />
           </div>
