@@ -1,12 +1,20 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Note, setSelectedNoteId } from "@/Redux/notesSlice";
-import { PinIcon, Search } from "lucide-react";
+import {
+  Note,
+  setSelectedNoteId,
+  undoDelete,
+  redoDelete,
+  loadDeletedNotes,
+  loadRedoableNotes,
+} from "@/Redux/notesSlice";
+import { PinIcon, Search, Undo, Redo } from "lucide-react";
 import { RootState } from "@/Redux/store";
 import { Input } from "./ui/input";
+import { Button } from "./ui/button";
 
 export function NoteList() {
   const notes = useSelector((state: RootState) => state.notes.notes);
@@ -21,6 +29,48 @@ export function NoteList() {
     dispatch(setSelectedNoteId(note.id));
   };
 
+  const deletedNotes =
+    useSelector((state: RootState) => state.notes.deletedNotes) || [];
+  const redoableNotes =
+    useSelector((state: RootState) => state.notes.redoableNotes) || [];
+
+  useEffect(() => {
+    const storedDeletedNotes = sessionStorage.getItem("deletedNotes");
+    const storedRedoableNotes = sessionStorage.getItem("redoableNotes");
+
+    if (storedDeletedNotes) {
+      try {
+        const parsedDeletedNotes = JSON.parse(storedDeletedNotes);
+        if (Array.isArray(parsedDeletedNotes)) {
+          dispatch(loadDeletedNotes(parsedDeletedNotes));
+        }
+      } catch (error) {
+        console.error("Error parsing stored deletedNotes", error);
+        sessionStorage.removeItem("deletedNotes");
+      }
+    }
+
+    if (storedRedoableNotes) {
+      try {
+        const parsedRedoableNotes = JSON.parse(storedRedoableNotes);
+        if (Array.isArray(parsedRedoableNotes)) {
+          dispatch(loadRedoableNotes(parsedRedoableNotes));
+        }
+      } catch (error) {
+        console.error("Error parsing stored redoableNotes", error);
+        sessionStorage.removeItem("redoableNotes");
+      }
+    }
+  }, [dispatch]);
+
+  const handleUndo = () => {
+    dispatch(undoDelete());
+  };
+
+  const handleRedo = () => {
+    dispatch(redoDelete());
+  };
+
   const filteredNotes = notes.filter(
     (note) =>
       note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -30,7 +80,7 @@ export function NoteList() {
   return (
     <>
       <div className="bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="relative">
+        <div className="relative mb-2">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search"
@@ -38,6 +88,24 @@ export function NoteList() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+        </div>
+        <div className="flex gap-2 mt-2">
+          <Button
+            onClick={handleUndo}
+            disabled={deletedNotes.length === 0}
+            className="flex-1"
+          >
+            <Undo className="mr-2 h-4 w-4" />
+            Undo ({deletedNotes.length})
+          </Button>
+          <Button
+            onClick={handleRedo}
+            disabled={redoableNotes.length === 0}
+            className="flex-1"
+          >
+            <Redo className="mr-2 h-4 w-4" />
+            Redo ({redoableNotes.length})
+          </Button>
         </div>
       </div>
       <ScrollArea className="h-[calc(100vh-120px)]">

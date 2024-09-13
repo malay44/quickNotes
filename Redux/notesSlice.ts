@@ -7,18 +7,23 @@ export interface Note {
   date: string;
   pinned: boolean;
   glossary?: Record<string, string>;
+  backgroundColor?: string; // Add this line
 }
 
 interface NotesState {
   notes: Note[];
   pinnedNotes: string[];
   selectedNoteId: string | null;
+  deletedNotes: Note[]; // Add this line
+  redoableNotes: Note[]; // Add this line
 }
 
 const initialState: NotesState = {
   notes: [],
   pinnedNotes: [],
   selectedNoteId: null,
+  deletedNotes: [], // Ensure this is always initialized as an empty array
+  redoableNotes: [], // Add this line
 };
 
 const notesSlice = createSlice({
@@ -47,26 +52,29 @@ const notesSlice = createSlice({
     },
     updateNote: (
       state,
-      action: PayloadAction<{
-        id: string;
-        title?: string;
-        content?: string;
-        summary?: string;
-      }>
+      action: PayloadAction<Partial<Note> & { id: string }>
     ) => {
-      const { id, title, content, summary } = action.payload;
-      const noteIndex = state.notes.findIndex((note) => note.id === id);
-      if (noteIndex !== -1) {
-        state.notes[noteIndex] = {
-          ...state.notes[noteIndex],
-          title: title ?? state.notes[noteIndex].title,
-          content: content ?? state.notes[noteIndex].content,
-          summary: summary ?? state.notes[noteIndex].summary,
-          date: new Date().toISOString(), // Store date as ISO string
-        };
+      const index = state.notes.findIndex(
+        (note) => note.id === action.payload.id
+      );
+      if (index !== -1) {
+        state.notes[index] = { ...state.notes[index], ...action.payload };
       }
     },
     deleteNote: (state, action: PayloadAction<string>) => {
+      const deletedNote = state.notes.find((n) => n.id === action.payload);
+      if (deletedNote) {
+        state.deletedNotes.push(deletedNote);
+        state.redoableNotes = []; // Clear redoable notes on new delete
+        sessionStorage.setItem(
+          "deletedNotes",
+          JSON.stringify(state.deletedNotes)
+        );
+        sessionStorage.setItem(
+          "redoableNotes",
+          JSON.stringify(state.redoableNotes)
+        );
+      }
       state.notes = state.notes.filter((n) => n.id !== action.payload);
       state.pinnedNotes = state.pinnedNotes.filter((n) => n !== action.payload);
       state.selectedNoteId = state.notes.length > 0 ? state.notes[0].id : null;
@@ -95,6 +103,45 @@ const notesSlice = createSlice({
         note.glossary = action.payload.glossary;
       }
     },
+    undoDelete: (state) => {
+      const lastDeletedNote = state.deletedNotes.pop();
+      if (lastDeletedNote) {
+        state.notes.unshift(lastDeletedNote);
+        state.selectedNoteId = lastDeletedNote.id;
+        state.redoableNotes.push(lastDeletedNote);
+        sessionStorage.setItem(
+          "deletedNotes",
+          JSON.stringify(state.deletedNotes)
+        );
+        sessionStorage.setItem(
+          "redoableNotes",
+          JSON.stringify(state.redoableNotes)
+        );
+      }
+    },
+    redoDelete: (state) => {
+      const noteToDelete = state.redoableNotes.pop();
+      if (noteToDelete) {
+        state.notes = state.notes.filter((n) => n.id !== noteToDelete.id);
+        state.deletedNotes.push(noteToDelete);
+        state.selectedNoteId =
+          state.notes.length > 0 ? state.notes[0].id : null;
+        sessionStorage.setItem(
+          "deletedNotes",
+          JSON.stringify(state.deletedNotes)
+        );
+        sessionStorage.setItem(
+          "redoableNotes",
+          JSON.stringify(state.redoableNotes)
+        );
+      }
+    },
+    loadDeletedNotes: (state, action: PayloadAction<Note[]>) => {
+      state.deletedNotes = action.payload || []; // Ensure a default value
+    },
+    loadRedoableNotes: (state, action: PayloadAction<Note[]>) => {
+      state.redoableNotes = action.payload || []; // Ensure a default value
+    },
   },
 });
 
@@ -105,5 +152,9 @@ export const {
   togglePinNote,
   setSelectedNoteId,
   setGlossary,
+  undoDelete,
+  redoDelete,
+  loadDeletedNotes,
+  loadRedoableNotes,
 } = notesSlice.actions;
 export default notesSlice.reducer;

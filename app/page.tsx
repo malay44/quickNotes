@@ -16,10 +16,26 @@ import { Button } from "@/components/ui/button";
 import { addNote, setSelectedNoteId } from "@/Redux/notesSlice";
 import { RootState } from "@/Redux/store";
 import NoteHeader from "@/components/NoteHeader";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "next-themes";
 
 export default function NotesPage() {
   const dispatch = useDispatch();
   const [isMobile, setIsMobile] = React.useState(false);
+
+  const { setTheme } = useTheme();
+
+  // set them based on user time
+  // 6am to 8pm light theme
+  // other then that dark mode
+  React.useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 20) {
+      setTheme("light");
+    } else {
+      setTheme("dark");
+    }
+  }, []);
 
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -56,6 +72,7 @@ export default function NotesPage() {
           <Button variant="outline" size="icon" onClick={handleNewNote}>
             <Plus className="h-4 w-4" />
           </Button>
+          <ThemeToggle />
         </div>
         <Separator />
         {selectedNoteId ? (

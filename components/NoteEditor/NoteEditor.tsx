@@ -5,6 +5,9 @@ import { updateNote, deleteNote } from "@/Redux/notesSlice";
 import { RootState } from "@/Redux/store";
 import useDebounce from "@/hooks/useDebounce";
 import { GlossaryButton } from "../GlossaryButton";
+// Add this import
+import { ColorPicker } from "../ColorPicker";
+import { ThemeToggle } from "../ThemeToggle";
 
 interface NoteEditorProps {}
 
@@ -71,6 +74,17 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
     }
   };
 
+  const handleColorChange = (color: string) => {
+    if (selectedNoteId !== null) {
+      dispatch(
+        updateNote({
+          id: selectedNoteId,
+          backgroundColor: color,
+        })
+      );
+    }
+  };
+
   const highlightGlossaryTerms = () => {
     if (contentEditableRef.current) {
       const content = contentEditableRef.current.innerHTML;
@@ -78,6 +92,11 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
 
       selectedNote?.glossary &&
         Object.keys(selectedNote.glossary).forEach((term) => {
+          // regex explanation:
+          // \\b is a word boundary
+          // g is global search
+          // i is case insensitive
+          // $& is the matched text
           const regex = new RegExp(`\\b${term}\\b`, "gi");
           newContent = newContent.replace(
             regex,
@@ -112,6 +131,7 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
         <Button variant="outline" onClick={() => handleFormat("justifyRight")}>
           Right
         </Button>
+        <ThemeToggle />
         <select
           className="border rounded-md p-1 bg-background"
           onChange={(e) => handleFormat("fontSize", e.target.value)}
@@ -124,8 +144,15 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
           ))}
         </select>
         <GlossaryButton noteId={selectedNoteId} text={selectedNote?.content} />
+        <ColorPicker
+          color={selectedNote?.backgroundColor || "#ffffff"}
+          onChange={handleColorChange}
+        />
       </div>
-      <div className="relative flex-grow overflow-auto border rounded-md">
+      <div
+        className="relative flex-grow overflow-auto border rounded-md"
+        style={{ backgroundColor: selectedNote?.backgroundColor || "#ffffff" }}
+      >
         <div
           className="absolute inset-0 focus-visible:outline-none p-2 mb-2 h-full"
           contentEditable="true"
