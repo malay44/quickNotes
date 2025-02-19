@@ -1,19 +1,20 @@
-import React, { useRef, useEffect } from "react";
-import { Button } from "../ui/button";
-import { useDispatch, useSelector } from "react-redux";
-import { updateNote, deleteNote } from "@/Redux/notesSlice";
-import { RootState } from "@/Redux/store";
-import useDebounce from "@/hooks/useDebounce";
-import { GlossaryButton } from "../GlossaryButton";
+import React, { useRef, useEffect } from 'react';
+import { Button } from '../ui/button';
+import { useDispatch, useSelector } from 'react-redux';
+import { updateNote, deleteNote } from '@/Redux/notesSlice';
+import { RootState } from '@/Redux/store';
+import useDebounce from '@/hooks/useDebounce';
+import { GlossaryButton } from '../GlossaryButton';
 // Add this import
-import { ColorPicker } from "../ColorPicker";
-import { ThemeToggle } from "../ThemeToggle";
+import { ColorPicker } from '../ColorPicker';
+import { ThemeToggle } from '../ThemeToggle';
 
 interface NoteEditorProps {}
 
 const NoteEditor: React.FC<NoteEditorProps> = () => {
   const contentEditableRef = useRef<HTMLDivElement>(null);
   const highlightOverlayRef = useRef<HTMLDivElement>(null);
+  const contentContainerRef = useRef<HTMLDivElement>(null);
 
   const selectedNoteId = useSelector(
     (state: RootState) => state.notes.selectedNoteId
@@ -30,8 +31,8 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
       highlightOverlayRef.current &&
       contentEditableRef.current.innerHTML !== selectedNote?.content
     ) {
-      contentEditableRef.current.innerHTML = selectedNote?.content || "";
-      highlightOverlayRef.current.innerHTML = selectedNote?.content || "";
+      contentEditableRef.current.innerHTML = selectedNote?.content || '';
+      highlightOverlayRef.current.innerHTML = selectedNote?.content || '';
     }
   }, [selectedNote]);
 
@@ -54,8 +55,8 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
       dispatch(
         updateNote({
           id: selectedNoteId,
-          content: contentEditableRef.current?.innerHTML || "",
-          summary: contentEditableRef.current?.innerText?.slice(0, 100) || "",
+          content: contentEditableRef.current?.innerHTML || '',
+          summary: contentEditableRef.current?.innerText?.slice(0, 100) || '',
         })
       );
     }
@@ -76,10 +77,16 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
 
   const handleColorChange = (color: string) => {
     if (selectedNoteId !== null) {
+      contentContainerRef.current!.style.backgroundColor = color;
+    }
+  };
+
+  const handleSaveColor = () => {
+    if (selectedNoteId !== null) {
       dispatch(
         updateNote({
           id: selectedNoteId,
-          backgroundColor: color,
+          backgroundColor: contentContainerRef.current?.style.backgroundColor,
         })
       );
     }
@@ -97,7 +104,7 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
           // g is global search
           // i is case insensitive
           // $& is the matched text
-          const regex = new RegExp(`\\b${term}\\b`, "gi");
+          const regex = new RegExp(`\\b${term}\\b`, 'gi');
           newContent = newContent.replace(
             regex,
             `<mark class="bg-yellow-200">$&</mark>`
@@ -113,28 +120,28 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
   return (
     <div className="p-2 h-full flex flex-col">
       <div className="flex gap-2 mb-2 flex-wrap">
-        <Button variant="outline" onClick={() => handleFormat("bold")}>
+        <Button variant="outline" onClick={() => handleFormat('bold')}>
           B
         </Button>
-        <Button variant="outline" onClick={() => handleFormat("italic")}>
+        <Button variant="outline" onClick={() => handleFormat('italic')}>
           I
         </Button>
-        <Button variant="outline" onClick={() => handleFormat("underline")}>
+        <Button variant="outline" onClick={() => handleFormat('underline')}>
           U
         </Button>
-        <Button variant="outline" onClick={() => handleFormat("justifyLeft")}>
+        <Button variant="outline" onClick={() => handleFormat('justifyLeft')}>
           Left
         </Button>
-        <Button variant="outline" onClick={() => handleFormat("justifyCenter")}>
+        <Button variant="outline" onClick={() => handleFormat('justifyCenter')}>
           Center
         </Button>
-        <Button variant="outline" onClick={() => handleFormat("justifyRight")}>
+        <Button variant="outline" onClick={() => handleFormat('justifyRight')}>
           Right
         </Button>
         <ThemeToggle />
         <select
           className="border rounded-md p-1 bg-background"
-          onChange={(e) => handleFormat("fontSize", e.target.value)}
+          onChange={(e) => handleFormat('fontSize', e.target.value)}
           value={undefined}
         >
           {[12, 14, 16, 18, 20, 24, 28].map((size) => (
@@ -145,13 +152,15 @@ const NoteEditor: React.FC<NoteEditorProps> = () => {
         </select>
         <GlossaryButton noteId={selectedNoteId} text={selectedNote?.content} />
         <ColorPicker
-          color={selectedNote?.backgroundColor || "#ffffff"}
+          color={selectedNote?.backgroundColor || '#ffffff'}
+          onClose={handleSaveColor}
           onChange={handleColorChange}
         />
       </div>
       <div
         className="relative flex-grow overflow-auto border rounded-md"
-        style={{ backgroundColor: selectedNote?.backgroundColor || "#ffffff" }}
+        ref={contentContainerRef}
+        style={{ backgroundColor: selectedNote?.backgroundColor || '#ffffff' }}
       >
         <div
           className="absolute inset-0 focus-visible:outline-none p-2 mb-2 h-full"
